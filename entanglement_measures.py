@@ -187,6 +187,101 @@ class Randomized_Renyi_2():
         self.freq_list = super_freq
 
 
+    def Clifford(self, circuit: Circuit, N_A: list, N_M: int):
+        '''
+        It computes the 2-Renyi entropy using the average over the Clifford group.
+        Parameters:
+            circuit: initial circuit where the funcion is applied. It must represent a state where we want to estimate the entropy.
+            N_A: number of qubits in subspace A. Belongs only to the first part of the circuit.
+            N_M: number of measurements.
+        '''
+
+        H = 1/np.sqrt(2)*np.array([[1,1],[1,-1]], dtype=complex)
+        S = np.array([[1,0],[0,1j]])
+
+        single_qubit_cliffords = [
+            '',
+            'H', 'S',
+            'HS', 'SH', 'SS',
+            'HSH', 'HSS', 'SHS', 'SSH', 'SSS',
+            'HSHS', 'HSSH', 'HSSS', 'SHSS', 'SSHS',
+            'HSHSS', 'HSSHS', 'SHSSH', 'SHSSS', 'SSHSS',
+            'HSHSSH', 'HSHSSS', 'HSSHSS'
+        ]
+
+        matrix_products = []
+
+        for string in single_qubit_cliffords:
+            product = np.eye(2)
+            for symbol in string:
+                if symbol == 'H':
+                    product = product @ H
+
+                if symbol == 'S':
+                    product = product @ S
+
+                else: 
+                    pass
+            matrix_products.append(product)
+
+        permutations_matrices = list(itertools.product(matrix_products, repeat=len(N_A)))
+
+        super_list = []
+        super_error = []
+
+        for perm in permutations_matrices:
+            c_copy = circuit.copy()
+
+            for i, j in enumerate(N_A):
+                Clifford_gate = perm[i]
+                c_copy.add(gates.Unitary(Clifford_gate, j))
+                c_copy.add(gates.M(j))
+
+
+            result = c_copy(nshots=N_M)
+            freq = result.frequencies()
+            #Formula is applied, summing over all probabilities twice and computing the hamming distance.
+            x_list = []
+            x_error = []
+            for i in freq:
+                j_iter = 0
+                j_error = 0
+                for j in freq:
+                    count = 0
+                    d = hamming(list(str(i)), list(str(j)))*len(N_A)
+                    if i == j:
+                        count = (-2)**(-d)*(((freq[i]/N_M)*(freq[i] - 1))/(N_M - 1))
+                        count_error = (-2)**(-d)*(2*freq[i] - 1)/(N_M - 1)*np.sqrt((freq[i]/N_M)*(1-(freq[i]/N_M))/N_M)
+                    else:
+                        count = (-2)**(-d)*freq[i]*freq[j]/(N_M**2)
+                        count_error = (-2)**(-d)*np.sqrt(((freq[j]/N_M)*np.sqrt((freq[i]/N_M)*(1-(freq[i]/N_M))/N_M))**2 + ((freq[i]/N_M)*np.sqrt((freq[j]/N_M)*(1-(freq[j]/N_M))/N_M))**2)
+                    
+                        
+                    j_iter += count
+                    j_error += count_error**2
+
+                x_list.append(j_iter)
+                x_error.append(np.sqrt(j_error))
+
+            X = 2**len(N_A)*np.sum(x_list)
+            x_error = np.array(x_error)
+            X_error = 2**len(N_A)*np.sqrt(np.sum(x_error**2))
+            super_list.append(X)
+            super_error.append(X_error)
+                               
+    
+        X_mean = np.mean(super_list)
+        super_error = np.array(super_error)
+        X_std = 1/len(permutations_matrices)*np.sqrt(np.sum(super_error**2))
+
+        S_2 = - np.log2(X_mean)
+        S_2_error = X_std/(X_mean*np.log(2))
+
+        
+        self.entropy_value = S_2
+        self.entropy_error = S_2_error
+
+
     def entropy(self):
         '''
         It returns the estimated entropy of the especified randomized protocol.
