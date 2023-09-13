@@ -2,7 +2,6 @@ import numpy as np
 import tequila as tq
 from qibo.quantum_info import random_unitary as U
 from scipy.spatial.distance import hamming
-from qibo.models import Circuit
 from qiskit.quantum_info import OneQubitEulerDecomposer as OQED 
 from collections import Counter
 from tequila.circuit import QCircuit
@@ -187,7 +186,7 @@ class Randomized_Renyi_2():
 
         return c
 
-    def X_fun_global(self, circuit: Circuit, N_A: list, N_M: int, backend:str):
+    def X_fun_global(self, circuit: QCircuit, N_A: list, N_M: int, backend:str):
         '''
         This functions estimates the purtiy of subsystem A tr(rho_A**2) with a fixed set of global random unitaries, for N_A a list containing the qubits that form
         part of such subspace.
@@ -214,7 +213,7 @@ class Randomized_Renyi_2():
         
         return X, X_error, freq
 
-    def Global(self, circuit: Circuit, N_A: list, N_U: int, N_M: int, backend:str):
+    def Global(self, circuit: QCircuit, N_A: list, N_U: int, N_M: int, backend:str):
         '''
         It computes the 2-Réyni entropy of the circuit following the global randomized unitary protocol.
         Parameters:
