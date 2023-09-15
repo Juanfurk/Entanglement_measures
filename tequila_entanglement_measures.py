@@ -2,6 +2,7 @@ import numpy as np
 import tequila as tq
 from qibo.quantum_info import random_unitary as U
 from scipy.spatial.distance import hamming
+from qibo.models import Circuit
 from qiskit.quantum_info import OneQubitEulerDecomposer as OQED 
 from collections import Counter
 from tequila.circuit import QCircuit
@@ -25,7 +26,7 @@ class Randomized_Renyi_2():
 
     def int_to_binary_string(self, number: int, nqubits:int):
         '''
-        Given a number, it returns its associated bitstring representation, with total sizew of nqubits.
+        Given a number, it returns its associated bitstring representation, with total size of nqubits.
         Parameters:
             number: any number, as log as it tis int.
             nqubits: total number of qubits.
@@ -68,7 +69,7 @@ class Randomized_Renyi_2():
         dict_counts = {key: value for key, value in zip(bit_strings, counts)}
         return Counter(dict_counts)
 
-    def X_fun(self, circuit: QCircuit, N_A: list, N_M: int, backend: str):
+    def X_fun(self, circuit: QCircuit, N_A: list, N_M: int, backend: str, variables:dict=None):
         '''
         This functions estimates the purtiy of subsystem A, tr(rho_A**2), with a fixed set of local random unitaries, for N_A a list containing 
         the qubits that form part of such subspace.
@@ -86,7 +87,12 @@ class Randomized_Renyi_2():
             angles = OQED(basis = 'U3').angles(U_gate)
             gate_list.append(U_gate)
             c += tq.gates.u3(theta=angles[0], phi = angles[1], lambd= angles[2], target = i)
-        wfn = tq.simulate(c, samples=N_M, backend = backend , read_out_qubits = N_A)
+
+        if variables is None:
+            wfn = tq.simulate(c, samples=N_M, backend = backend , read_out_qubits = N_A)
+        else:
+            wfn = tq.simulate(c, samples=N_M, backend = backend , read_out_qubits = N_A, variables=variables)
+
         freq = self.dict_freq(wfn, len(N_A)) #importante para trabajar con las frecuencias y bitstrings una vez medido
 
 
@@ -118,7 +124,7 @@ class Randomized_Renyi_2():
 
         return X , X_error, gate_list, freq
 
-    def Local(self, circuit: QCircuit, N_A: list, N_U: int, N_M: int, backend: str):
+    def Local(self, circuit: QCircuit, N_A: list, N_U: int, N_M: int, backend: str, variables:dict=None):
         '''
         It computes the 2-Réyni entropy of the circuit following the local randomized unitary protocol.
         Parameters:
@@ -136,7 +142,12 @@ class Randomized_Renyi_2():
         super_freq = []
         for _ in range(N_U):
             c_copy = copy.deepcopy(circuit)
-            X, X_error, U_gates, freq = self.X_fun(c_copy, N_A, N_M, backend)
+
+            if variables is None:
+                X, X_error, U_gates, freq = self.X_fun(c_copy, N_A, N_M, backend)
+            else:
+                X, X_error, U_gates, freq = self.X_fun(c_copy, N_A, N_M, backend, variables)
+
             super_list.append(X)
             super_error.append(X_error)
             super_gate_list.append(U_gates)
@@ -186,7 +197,7 @@ class Randomized_Renyi_2():
 
         return c
 
-    def X_fun_global(self, circuit: QCircuit, N_A: list, N_M: int, backend:str):
+    def X_fun_global(self, circuit: Circuit, N_A: list, N_M: int, backend:str, variables:dict=None):
         '''
         This functions estimates the purtiy of subsystem A tr(rho_A**2) with a fixed set of global random unitaries, for N_A a list containing the qubits that form
         part of such subspace.
@@ -198,7 +209,11 @@ class Randomized_Renyi_2():
         '''
         c = self.Global_Unitary(circuit, N_A)
 
-        wfn = tq.simulate(c, samples=N_M, backend = backend , read_out_qubits = N_A)
+        if variables is None:
+            wfn = tq.simulate(c, samples=N_M, backend = backend , read_out_qubits = N_A)
+        else:
+            wfn = tq.simulate(c, samples=N_M, backend = backend , read_out_qubits = N_A, variables=variables)
+
         freq = self.dict_freq(wfn, len(N_A)) #importante para trabajar con las frecuencias una vez medido
 
         #Formula is applied, summing over all probabilities twice and computing the hamming distance.
@@ -213,7 +228,7 @@ class Randomized_Renyi_2():
         
         return X, X_error, freq
 
-    def Global(self, circuit: QCircuit, N_A: list, N_U: int, N_M: int, backend:str):
+    def Global(self, circuit: Circuit, N_A: list, N_U: int, N_M: int, backend:str, variables:dict=None):
         '''
         It computes the 2-Réyni entropy of the circuit following the global randomized unitary protocol.
         Parameters:
@@ -231,7 +246,12 @@ class Randomized_Renyi_2():
         self.number_A = N_A
         for _ in range(N_U):
             c_copy = copy.deepcopy(circuit)
-            X, X_error, freq = self.X_fun_global(c_copy, N_A, N_M, backend)
+
+            if variables is None:
+                X, X_error, freq = self.X_fun_global(c_copy, N_A, N_M, backend)
+            else:
+                X, X_error, freq = self.X_fun_global(c_copy, N_A, N_M, backend, variables)
+
             super_list.append(X)
             super_error.append(X_error)
             #super_gate_list.append(U_gates)
@@ -252,7 +272,7 @@ class Randomized_Renyi_2():
         self.freq_list = super_freq
     
 
-    def Clifford(self, circuit: QCircuit, N_A: list, N_M: int, backend:str):
+    def Clifford(self, circuit: QCircuit, N_A: list, N_M: int, backend:str, variables:dict=None):
         '''
         It computes the 2-Renyi entropy using the average over the Clifford group.
         Parameters:
@@ -304,7 +324,11 @@ class Randomized_Renyi_2():
                 c_copy += tq.gates.u3(theta=angles[0], phi = angles[1], lambd= angles[2], target = j)
 
 
-            wfn = tq.simulate(c_copy, samples=N_M, backend = backend , read_out_qubits = N_A)
+            if variables is None:
+                wfn = tq.simulate(c_copy, samples=N_M, backend = backend , read_out_qubits = N_A)
+            else:
+                wfn = tq.simulate(c_copy, samples=N_M, backend = backend , read_out_qubits = N_A, variables=variables)  
+                
             freq = self.dict_freq(wfn, len(N_A)) #importante para trabajar con las frecuencias una vez medido
             #Formula is applied, summing over all probabilities twice and computing the hamming distance.
             x_list = []
