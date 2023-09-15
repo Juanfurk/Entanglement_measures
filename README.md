@@ -8,4 +8,6 @@ I have added "qiskit_entanglement_measures.py". Again, it is basically the same 
 
 I have added 'Qibo_Tests.ipynb', a notebook that contains some of the work I have been conducting post-TFM, like the p3-PPT criterian on Werner States.
 
+Finally, the 'Post_TFM.pdf' contains everything I have been doing for this last couple of weeks. It is a much detailed explanation that also contain unfinished work with the path that may be follow in order to finish it.
+
 
